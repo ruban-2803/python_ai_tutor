@@ -1,3 +1,5 @@
 streamlit
 groq
 graphviz
+streamlit-lottie
+requests

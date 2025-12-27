@@ -68,10 +68,15 @@ with st.sidebar:
     st.divider()
     
     # Tools
+    # Tools
     if st.button("🗑️ Reset Chat"):
-        st.session_state.messages = []
+        # Delete the key so the 'Initialize Chat' block runs again
+        if "messages" in st.session_state:
+            del st.session_state["messages"]
+        if "trigger_visualizer" in st.session_state:
+            del st.session_state["trigger_visualizer"]
         st.rerun()
-
+        
 # 5. MAIN LOGIC & SYSTEM PROMPT
 # We dynamically build the prompt based on the Sidebar Selection
 system_prompt = f"""

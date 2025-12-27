@@ -14,6 +14,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Load Lottie Animation
 def load_lottieurl(url: str):
     try:
         r = requests.get(url)
@@ -26,12 +27,13 @@ def load_lottieurl(url: str):
 lottie_ai = load_lottieurl("https://lottie.host/02a52df2-2591-45da-9694-87890f5d7293/63126e7b-c36f-4091-a67b-240a9243764b.json")
 
 # ==========================================
-# 2. DARK MODE CSS STYLING
+# 2. DARK MODE CSS & SECURITY FIXES
 # ==========================================
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@300;400;600&display=swap');
     
+    /* GLOBAL DARK THEME */
     html, body, [class*="css"] { 
         font-family: 'Inter', sans-serif; 
         color: #E0E0E0; 
@@ -43,7 +45,14 @@ st.markdown("""
         background-image: radial-gradient(circle at 50% 50%, #161B22 0%, #0E1117 100%);
     }
 
-    /* LOGIN CARD */
+    /* --- NUCLEAR OPTION: HIDE STREAMLIT BRANDING/GITHUB --- */
+    [data-testid="stToolbar"] { visibility: hidden !important; display: none !important; }
+    [data-testid="stDecoration"] { visibility: hidden !important; display: none !important; }
+    footer { visibility: hidden !important; display: none !important; }
+    header { visibility: hidden !important; display: none !important; }
+    .stDeployButton { display: none !important; }
+
+    /* --- LOGIN CARD (DARK GLASS) --- */
     .login-container {
         background: rgba(20, 20, 30, 0.7);
         backdrop-filter: blur(12px);
@@ -69,13 +78,11 @@ st.markdown("""
         font-size: 14px; color: #AAA; margin-bottom: 30px; letter-spacing: 1px; text-transform: uppercase;
     }
 
-    /* INPUTS */
+    /* INPUTS & BUTTONS */
     .stTextInput input {
         background-color: #1F2329 !important; color: white !important;
         border: 1px solid #333; border-radius: 10px; padding: 12px;
     }
-    
-    /* BUTTONS */
     div.stButton > button {
         background: linear-gradient(90deg, #FF4B4B 0%, #FF914D 100%);
         color: white; padding: 14px 0px; border-radius: 10px; border: none; width: 100%;
@@ -85,14 +92,18 @@ st.markdown("""
         transform: translateY(-2px); box-shadow: 0 10px 25px rgba(255, 75, 75, 0.4);
     }
     
-    /* PREMIUM LOCK SCREEN CARD */
+    /* LOCK SCREEN */
     .lock-card {
-        background-color: #1a1a2e;
-        border: 1px solid #FF4B4B;
-        padding: 40px;
-        border-radius: 15px;
-        text-align: center;
-        margin-top: 50px;
+        background-color: #1a1a2e; border: 1px solid #FF4B4B; padding: 40px;
+        border-radius: 15px; text-align: center; margin-top: 50px;
+    }
+    
+    /* EDITOR */
+    .stTextArea textarea { 
+        font-family: 'Courier New', monospace; 
+        background-color: #111 !important; 
+        color: #00FF99 !important; 
+        border: 1px solid #333;
     }
     
     [data-testid="stSidebar"] { display: none; }
@@ -105,7 +116,7 @@ st.markdown("""
 def check_login():
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
-        st.session_state.user_role = "demo" # Default
+        st.session_state.user_role = "demo"
     
     if st.session_state.authenticated:
         st.markdown("""<style>[data-testid="stSidebar"] { display: block; }</style>""", unsafe_allow_html=True)
@@ -137,7 +148,7 @@ def check_login():
                     if details["email"] == email and details["password"] == password:
                         st.session_state.authenticated = True
                         st.session_state.user_name = details["name"]
-                        # Logic: Assign role based on specific email or a 'role' key in secrets
+                        # Assign Role Logic
                         if email == "admin@pylo.com":
                             st.session_state.user_role = "admin"
                         else:
@@ -154,7 +165,7 @@ if not check_login():
     st.stop()
 
 # ==========================================
-# 4. MAIN DASHBOARD
+# 4. MAIN DASHBOARD & LOGIC
 # ==========================================
 st.markdown("""<style>[data-testid="stSidebar"] { display: block; }</style>""", unsafe_allow_html=True)
 
@@ -173,12 +184,11 @@ SYLLABUS = {
     "Level 6: Advanced (Pro)": "Classes, OOP, APIs, Libraries, Error Handling"
 }
 
-# --- SIDEBAR (With Logic) ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.markdown('<h2 style="color:white; font-family:Orbitron;">Pylo 🧬</h2>', unsafe_allow_html=True)
     st.caption("by SanRu Labs")
     
-    # Show Role Badge
     if st.session_state.user_role == "admin":
         st.success("⚡ ADMIN MODE")
     else:
@@ -190,8 +200,7 @@ with st.sidebar:
     st.subheader("📍 Roadmap")
     current_level = st.radio("Chapter:", list(SYLLABUS.keys()))
     
-    # --- RESTRICTION LOGIC 1: SYLLABUS ---
-    # If Demo user tries Level 3+, we lock it.
+    # RESTRICTION LOGIC 1: SYLLABUS
     is_locked = False
     if st.session_state.user_role == "demo":
         if "Level 1" not in current_level and "Level 2" not in current_level:
@@ -207,7 +216,7 @@ with st.sidebar:
         st.session_state.authenticated = False
         st.rerun()
 
-# --- HELPER FUNCTION FOR LOCK SCREEN ---
+# --- HELPER FOR LOCK SCREEN ---
 def show_lock_screen(feature_name):
     st.markdown(f"""
     <div class="lock-card">
@@ -215,7 +224,7 @@ def show_lock_screen(feature_name):
         <h3 style='color:white;'>The {feature_name} is available in the PRO Version.</h3>
         <p style='color:#AAA;'>You are currently using the Trial/Demo License.</p>
         <hr style='border-color:#333;'>
-        <p style='color:#FF914D; font-weight:bold;'>Contact SanRu Labs to upgrade your license.</p>
+        <p style='color:#FF914D; font-weight:bold;'>Contact SanRu Labs to upgrade.</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -277,7 +286,6 @@ with tab_tutor:
 with tab_arena:
     st.header(f"⚔️ {current_level} Challenge")
     
-    # Initialize Trial Counter
     if "arena_attempts" not in st.session_state:
         st.session_state.arena_attempts = 0
         
@@ -287,9 +295,8 @@ with tab_arena:
         st.session_state.current_challenge = "Awaiting Generation..."
         
     with col_q:
-        # --- RESTRICTION LOGIC 2: ARENA USAGE ---
         if st.button("🎲 Generate Problem", type="primary"):
-            # Check Limits
+            # RESTRICTION LOGIC 2: ARENA LIMIT
             if st.session_state.user_role == "demo" and st.session_state.arena_attempts >= 2:
                 st.error("🚫 TRIAL LIMIT REACHED (2/2)")
                 st.info("Upgrade to generate unlimited challenges.")
@@ -300,7 +307,6 @@ with tab_arena:
                     q_resp = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": q_prompt}])
                     st.session_state.current_challenge = q_resp.choices[0].message.content
                     
-        # Display Counter for Demo Users
         if st.session_state.user_role == "demo":
             st.caption(f"Trial Usage: {st.session_state.arena_attempts}/2")
             
@@ -318,7 +324,7 @@ with tab_arena:
 
 # TAB 3: GENERATOR
 with tab_codegen:
-    # --- RESTRICTION LOGIC 3: GENERATOR LOCK ---
+    # RESTRICTION LOGIC 3: GENERATOR LOCK
     if st.session_state.user_role == "demo":
         show_lock_screen("Instant Code Generator")
     else:

@@ -1,5 +1,11 @@
 [client]
-toolbarMode = "viewer" # Hides the developer options
+toolbarMode = "viewer"  # Hides developer options for viewers
+showErrorDetails = false # Hides technical error traces from users
 
-[ui]
-hideTopBar = true      # Hides the top bar completely
+[browser]
+gatherUsageStats = false # Increases privacy
+serverAddress = "0.0.0.0"
+
+[theme]
+base = "dark"           # Forces Dark Mode (Optional, since we used CSS)
+primaryColor = "#FF4B4B"

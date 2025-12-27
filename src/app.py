@@ -2,7 +2,9 @@ import streamlit as st
 from groq import Groq
 import graphviz
 
-# 1. APP CONFIGURATION
+# ==========================================
+# 1. APP CONFIGURATION & STYLING
+# ==========================================
 st.set_page_config(
     page_title="PyCoach AI",
     page_icon="🐍",
@@ -10,108 +12,150 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. CUSTOM STYLES
+# Custom CSS for a Pro Look
 st.markdown("""
 <style>
     /* Chat bubbles */
     .stChatMessage { border-radius: 10px; }
     
-    /* Headings colors */
-    h1 { color: #306998; }
+    /* Heading Colors */
+    h1 { color: #306998; } /* Python Blue */
+    h2, h3 { color: #FFD43B; } /* Python Yellow */
     
-    /* CODE EDITOR FIX */
+    /* FIX: Force black text in code editors so it is visible */
     .stTextArea textarea { 
         font-family: 'Courier New', monospace; 
-        background-color: #f0f2f6; /* Light Grey Background */
-        color: #000000 !important; /* FORCE Text to be Black */
+        background-color: #f0f2f6; 
+        color: #000000 !important; 
         border: 1px solid #ccc;
+    }
+    
+    /* Download Button Style */
+    div[data-testid="stDownloadButton"] button {
+        width: 100%;
     }
 </style>
 """, unsafe_allow_html=True)
-# 3. SETUP API & LOGIN
+
+# ==========================================
+# 2. AUTHENTICATION SYSTEM
+# ==========================================
 def check_login():
+    """Simple Gatekeeper System using Secrets"""
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
     
     if st.session_state.authenticated:
         return True
     
-    col1, col2 = st.columns([1,2])
+    # Login UI
+    col1, col2 = st.columns([1, 2])
     with col1:
-        st.image("https://upload.wikimedia.org/wikipedia/commons/c/c3/Python-logo-notext.svg", width=100)
+        st.image("https://upload.wikimedia.org/wikipedia/commons/c/c3/Python-logo-notext.svg", width=120)
     with col2:
         st.title("🔐 PyCoach Login")
-        st.caption("Sign in to access the Challenge Arena.")
+        st.caption("Sign in to access your AI Tutor & Tools.")
     
-    email = st.text_input("Email")
+    email = st.text_input("Email Address")
     password = st.text_input("Password", type="password")
     
     if st.button("Sign In", type="primary"):
+        # Check against secrets.toml
         users_db = st.secrets.get("users", {})
+        
+        user_found = False
         for _, details in users_db.items():
             if details["email"] == email and details["password"] == password:
                 st.session_state.authenticated = True
                 st.session_state.user_name = details["name"]
+                st.session_state.user_email = email
+                user_found = True
                 st.rerun()
-        st.error("❌ Invalid Credentials")
+        
+        if not user_found:
+            st.error("❌ Invalid Email or Password")
+            
     return False
 
+# Stop the app here if not logged in
 if not check_login():
     st.stop()
 
-# --- APP START ---
+# ==========================================
+# 3. MAIN APP LOGIC
+# ==========================================
 
+# Setup Groq Client
 try:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-except:
-    st.error("Missing API Key in Secrets!")
+except Exception:
+    st.error("⚠️ API Key missing! Please check your secrets.toml")
     st.stop()
 
-# SYLLABUS DEFINITION
+# Define the Learning Path
 SYLLABUS = {
-    "Level 1: The Basics": "Variables, Strings, Ints, Print()",
-    "Level 2: Logic": "Booleans, If/Else, Comparisons",
-    "Level 3: Looping": "For Loops, While Loops, Range()",
-    "Level 4: Lists & Dicts": "Lists, Indexing, Dictionaries",
-    "Level 5: Functions": "Def, Return, Arguments"
+    "Level 1: The Basics": "Variables, Strings, Integers, Float, Print(), Input()",
+    "Level 2: Logic & Decisions": "Booleans, If/Else, Elif, Comparison Operators",
+    "Level 3: Looping": "For Loops, While Loops, Range(), Break/Continue",
+    "Level 4: Data Structures": "Lists, Dictionaries, Tuples, Sets, Slicing",
+    "Level 5: Functions": "Defining Functions, Arguments, Return, Scope",
+    "Level 6: Advanced (Pro)": "Classes, OOP, APIs, Libraries, Error Handling"
 }
 
-# SIDEBAR
+# --- SIDEBAR ---
 with st.sidebar:
     st.title(f"👨‍💻 {st.session_state.user_name}")
-    st.subheader("📍 Roadmap")
-    current_level = st.radio("Chapter:", list(SYLLABUS.keys()))
-    st.info(f"**Focus:** {SYLLABUS[current_level]}")
+    st.caption(f"ID: {st.session_state.user_email}")
+    st.divider()
     
-    if st.button("Log Out"):
+    st.subheader("📍 Learning Roadmap")
+    current_level = st.radio("Current Chapter:", list(SYLLABUS.keys()))
+    
+    st.info(f"**Focus Topics:**\n{SYLLABUS[current_level]}")
+    
+    st.divider()
+    if st.button("🚪 Log Out"):
         st.session_state.authenticated = False
         st.rerun()
 
-# --- MAIN INTERFACE TABS ---
+# --- MAIN TABS ---
 st.title("PyCoach AI 🐍")
-tab_tutor, tab_arena = st.tabs(["🤖 AI Tutor", "⚔️ Challenge Arena"])
+tab_tutor, tab_arena, tab_codegen = st.tabs(["🤖 AI Tutor", "⚔️ Challenge Arena", "⚡ Code Generator"])
 
-# === TAB 1: THE TUTOR (Original Chat + Visualizer) ===
+# ==========================================
+# TAB 1: AI TUTOR + VISUALIZER
+# ==========================================
 with tab_tutor:
     col_chat, col_vis = st.columns([1.5, 1])
     
-    system_prompt = f"You are a Python Tutor. Current Chapter: {current_level}. Keep answers short."
+    # Context-aware System Prompt
+    system_prompt = f"""
+    You are PyCoach, a friendly but strict Python Tutor.
+    CURRENT LEVEL: {current_level}
+    TOPICS: {SYLLABUS[current_level]}
+    
+    Rules:
+    1. Only teach concepts relevant to the current level.
+    2. If the user asks about advanced topics, politely tell them to change the level.
+    3. Keep answers concise.
+    """
     
     if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "Hello! I'm ready to teach."}]
+        st.session_state.messages = [{"role": "assistant", "content": "Ready to learn! Ask me a question or ask me to 'Visualize' code."}]
 
     with col_chat:
-        # Chat History
+        # Render Chat History
         for msg in st.session_state.messages:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
         
-        # Chat Input
-        if prompt := st.chat_input("Ask a question..."):
+        # Input Handling
+        if prompt := st.chat_input("Ex: What is a variable? OR Visualize this loop..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
                 st.markdown(prompt)
             
+            # AI Response
             completion = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[{"role": "system", "content": system_prompt}] + st.session_state.messages,
@@ -121,8 +165,8 @@ with tab_tutor:
                 response = st.write_stream(chunk.choices[0].delta.content for chunk in completion if chunk.choices[0].delta.content)
             st.session_state.messages.append({"role": "assistant", "content": response})
             
-            # Logic for Visualizer Trigger
-            if "visualize" in prompt.lower() or "flowchart" in prompt.lower():
+            # Trigger Visualizer Logic
+            if "visualize" in prompt.lower() or "draw" in prompt.lower() or "flowchart" in prompt.lower():
                 st.session_state.trigger_visualizer = True
             else:
                 st.session_state.trigger_visualizer = False
@@ -130,43 +174,47 @@ with tab_tutor:
     with col_vis:
         st.caption("🕸️ Logic Visualizer")
         if st.session_state.get("trigger_visualizer"):
-            with st.spinner("Drawing logic..."):
+            with st.spinner("Generating Flowchart..."):
                 last_msg = st.session_state.messages[-1]["content"]
-                graph_req = f"Convert this Python logic to Graphviz DOT code. Return ONLY code inside ```dot``` blocks: {last_msg}"
+                graph_req = f"Convert this Python logic to Graphviz DOT code. Return ONLY code inside ```dot``` blocks. No text.: {last_msg}"
                 
                 try:
+                    # Use smaller model for fast graph gen
                     g_resp = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user", "content": graph_req}])
                     dot_code = g_resp.choices[0].message.content
-                    # Cleanup
+                    
+                    # Clean markdown wrapper
                     if "```dot" in dot_code: dot_code = dot_code.split("```dot")[1].split("```")[0]
                     elif "```" in dot_code: dot_code = dot_code.split("```")[1].split("```")[0]
+                    
                     st.graphviz_chart(dot_code)
                 except:
-                    st.warning("Could not visualize.")
+                    st.warning("Could not visualize this logic.")
+        else:
+            st.info("💡 Tip: Type 'Visualize this if statement' to see a diagram here.")
 
-# === TAB 2: THE CHALLENGE ARENA (New!) ===
+# ==========================================
+# TAB 2: CHALLENGE ARENA
+# ==========================================
 with tab_arena:
     st.header(f"⚔️ {current_level} Challenge")
-    
     col_q, col_code = st.columns([1, 1.5])
     
-    # Session State for Challenge
     if "current_challenge" not in st.session_state:
         st.session_state.current_challenge = "Click 'Generate' to start!"
-    
+        
     with col_q:
-        st.info("👋 Use this space to test your skills.")
+        st.info("👋 Test your skills.")
         if st.button("🎲 Generate New Problem", type="primary"):
-            with st.spinner("Creating a unique problem..."):
-                # Ask AI for a problem based on the level
-                prompt_q = f"Create a beginner coding challenge for {current_level}. Requirements: 1. Clear Instructions. 2. Example Input/Output. Keep it short."
+            with st.spinner("Creating problem..."):
+                q_prompt = f"Create a short coding challenge for {current_level}. Include input/output examples."
                 q_resp = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
-                    messages=[{"role": "user", "content": prompt_q}]
+                    messages=[{"role": "user", "content": q_prompt}]
                 )
                 st.session_state.current_challenge = q_resp.choices[0].message.content
         
-        st.markdown("### Problem:")
+        st.markdown("### Task:")
         st.markdown(st.session_state.current_challenge)
 
     with col_code:
@@ -178,22 +226,73 @@ with tab_arena:
                 st.warning("Write some code first!")
             else:
                 with st.spinner("Grading..."):
-                    # Grading Prompt
                     grade_prompt = f"""
-                    You are a Senior Engineer. 
-                    Problem: {st.session_state.current_challenge}
-                    User Code: {user_code}
+                    Role: Senior Python Interviewer.
+                    Task: {st.session_state.current_challenge}
+                    Student Code: {user_code}
                     
-                    Task: 
-                    1. Give a Score (0-100).
-                    2. Did it run? (Yes/No)
-                    3. Feedback: How to improve efficiency or style.
+                    Output:
+                    1. Score (0-100)
+                    2. Does it run?
+                    3. Efficiency Feedback
                     """
-                    
                     grade_resp = client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[{"role": "user", "content": grade_prompt}]
                     )
-                    
                     st.success("Grading Complete!")
                     st.markdown(grade_resp.choices[0].message.content)
+
+# ==========================================
+# TAB 3: CODE GENERATOR (UTILITY)
+# ==========================================
+with tab_codegen:
+    st.header("⚡ Instant Code Generator")
+    st.caption("Describe a tool, script, or game, and I will write the file for you.")
+    
+    col_gen_in, col_gen_out = st.columns([1, 1.5])
+    
+    with col_gen_in:
+        gen_prompt = st.text_area("Requirements:", height=150, placeholder="Ex: Create a snake game using pygame...")
+        if st.button("✨ Generate Script", type="primary", use_container_width=True):
+            if not gen_prompt:
+                st.warning("Please enter requirements.")
+            else:
+                with st.spinner("Coding..."):
+                    sys_gen = "You are a Python Expert. Write complete, working code based on the user prompt. Return ONLY the code inside ```python blocks."
+                    
+                    try:
+                        gen_resp = client.chat.completions.create(
+                            model="llama-3.3-70b-versatile",
+                            messages=[
+                                {"role": "system", "content": sys_gen},
+                                {"role": "user", "content": gen_prompt}
+                            ]
+                        )
+                        full_res = gen_resp.choices[0].message.content
+                        
+                        # Extract code
+                        clean_code = full_res
+                        if "```python" in full_res:
+                            clean_code = full_res.split("```python")[1].split("```")[0]
+                        elif "```" in full_res:
+                            clean_code = full_res.split("```")[1].split("```")[0]
+                            
+                        st.session_state.generated_code = full_res
+                        st.session_state.clean_code = clean_code
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+                        
+    with col_gen_out:
+        if "generated_code" in st.session_state:
+            st.subheader("🐍 Result:")
+            st.markdown(st.session_state.generated_code)
+            st.download_button(
+                label="📥 Download .py File",
+                data=st.session_state.clean_code,
+                file_name="generated_script.py",
+                mime="text/x-python",
+                type="primary"
+            )
+        else:
+            st.info("👈 Code will appear here.")

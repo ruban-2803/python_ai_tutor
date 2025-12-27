@@ -26,7 +26,50 @@ try:
 except Exception:
     st.error("⚠️ API Key missing! Please add GROQ_API_KEY to secrets.toml")
     st.stop()
+# --- INSERT THIS BLOCK AFTER set_page_config ---
 
+def check_login():
+    """Returns True if the user is logged in."""
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+    
+    if st.session_state.authenticated:
+        return True
+    
+    # Show Login Screen
+    st.title("🔐 PyCoach Login")
+    st.caption("Please sign in to access your AI Tutor.")
+    
+    email_input = st.text_input("Email")
+    pass_input = st.text_input("Password", type="password")
+    
+    if st.button("Sign In"):
+        # Check against secrets
+        users_db = st.secrets.get("users", {})
+        
+        for username, details in users_db.items():
+            if details["email"] == email_input and details["password"] == pass_input:
+                st.session_state.authenticated = True
+                st.session_state.user_name = details["name"]
+                st.success(f"Welcome, {details['name']}!")
+                st.rerun()
+        
+        st.error("❌ Invalid Email or Password")
+        
+    return False
+
+# THE GATEKEEPER
+if not check_login():
+    st.stop() # <--- This stops the rest of the app from loading!
+
+# --- SIDEBAR (Modify slightly to add Logout) ---
+with st.sidebar:
+    st.write(f"👤 **{st.session_state.user_name}**")
+    if st.button("Log Out"):
+        st.session_state.authenticated = False
+        st.rerun()
+    st.divider()
+    # ... (Rest of your sidebar code follows) ...
 # --- THE SYLLABUS ENGINE ---
 # This dictionary defines the "Scope" of each chapter.
 SYLLABUS = {

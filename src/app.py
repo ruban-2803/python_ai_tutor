@@ -13,12 +13,21 @@ st.set_page_config(
 # 2. CUSTOM STYLES
 st.markdown("""
 <style>
+    /* Chat bubbles */
     .stChatMessage { border-radius: 10px; }
+    
+    /* Headings colors */
     h1 { color: #306998; }
-    .stTextArea textarea { font-family: 'Courier New', monospace; background-color: #f0f2f6; }
+    
+    /* CODE EDITOR FIX */
+    .stTextArea textarea { 
+        font-family: 'Courier New', monospace; 
+        background-color: #f0f2f6; /* Light Grey Background */
+        color: #000000 !important; /* FORCE Text to be Black */
+        border: 1px solid #ccc;
+    }
 </style>
 """, unsafe_allow_html=True)
-
 # 3. SETUP API & LOGIN
 def check_login():
     if "authenticated" not in st.session_state:

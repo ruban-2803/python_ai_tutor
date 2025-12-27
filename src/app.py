@@ -3,7 +3,7 @@ from groq import Groq
 import graphviz
 
 # ==========================================
-# 1. APP CONFIGURATION & PRO STYLING
+# 1. APP CONFIGURATION & PRO UI STYLING
 # ==========================================
 st.set_page_config(
     page_title="PyCoach AI | SanRu Labs",
@@ -12,36 +12,92 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# LOAD GOOGLE FONTS & CUSTOM CSS
+# LOAD GOOGLE FONTS (Orbitron for Logo, Inter for Body)
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@300;400;600&display=swap');
 
     /* GLOBAL FONT CHANGE */
     html, body, [class*="css"]  {
-        font-family: 'Poppins', sans-serif;
+        font-family: 'Inter', sans-serif;
     }
 
-    /* SANRU LABS LOGO STYLE */
+    /* --- 1. SANRU LABS LOGO (The "Tech" Look) --- */
     .sanru-logo {
-        font-size: 24px;
+        font-family: 'Orbitron', sans-serif; /* Sci-Fi Font */
+        font-size: 28px;
         font-weight: 800;
-        background: -webkit-linear-gradient(45deg, #FF4B4B, #FF914D);
+        background: linear-gradient(90deg, #FF4B4B, #FF914D, #FFD43B);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        text-transform: uppercase;
+        letter-spacing: 2px;
         margin-bottom: 0px;
+        text-shadow: 0px 2px 10px rgba(255, 75, 75, 0.3); /* Glowing effect */
     }
+    
     .sanru-sub {
-        font-size: 12px;
+        font-family: 'Inter', sans-serif;
+        font-size: 11px;
+        font-weight: 600;
         color: #888;
-        letter-spacing: 1px;
+        letter-spacing: 3px;
+        text-transform: uppercase;
         margin-top: -5px;
+        margin-bottom: 20px;
     }
 
-    /* CHAT BUBBLES */
-    .stChatMessage { border-radius: 15px; border: 1px solid #eee; }
+    /* --- 2. LOGIN CARD STYLING --- */
+    /* This targets the column containing the logo to look like a 'Card' */
+    div[data-testid="stVerticalBlock"] > div:has(div.sanru-logo) {
+        background-color: white;
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.08); /* Soft Shadow */
+        border: 1px solid #f0f0f0;
+        text-align: center;
+    }
+
+    /* --- 3. INPUT FIELDS --- */
+    .stTextInput label {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #555;
+        letter-spacing: 1px;
+    }
     
-    /* CODE EDITOR FIX (Black Text) */
+    .stTextInput input {
+        border-radius: 8px;
+        border: 1px solid #eee;
+        padding: 10px;
+    }
+    .stTextInput input:focus {
+        border-color: #FF4B4B;
+        box-shadow: 0 0 5px rgba(255, 75, 75, 0.2);
+    }
+
+    /* --- 4. BUTTONS --- */
+    div.stButton > button {
+        background: linear-gradient(90deg, #FF4B4B 0%, #FF914D 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        font-weight: 600;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    div.stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(255, 75, 75, 0.4);
+        color: white;
+    }
+
+    /* --- 5. CHAT & CODE FIXES --- */
+    .stChatMessage { border-radius: 15px; border: 1px solid #eee; }
+    h1 { font-family: 'Orbitron', sans-serif; letter-spacing: 1px; color: #333; }
+    
+    /* Code Editor Black Text Fix */
     .stTextArea textarea { 
         font-family: 'Courier New', monospace; 
         background-color: #f8f9fa; 
@@ -49,18 +105,18 @@ st.markdown("""
         border: 1px solid #ddd;
     }
     
-    /* LOGIN CARD STYLING */
-    .login-container {
-        padding: 40px;
-        border-radius: 15px;
+    /* Download Button Full Width */
+    div[data-testid="stDownloadButton"] button {
+        width: 100%;
         background-color: white;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        color: #333;
+        border: 1px solid #ccc;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. CENTERED LOGIN SYSTEM (The Fix)
+# 2. CENTERED LOGIN SYSTEM
 # ==========================================
 def check_login():
     """Gatekeeper with a Centered 'Card' Layout"""
@@ -70,9 +126,7 @@ def check_login():
     if st.session_state.authenticated:
         return True
     
-    # --- THE "SQUEEZE" TRICK ---
-    # We use 3 columns: [Spacer, Content, Spacer]
-    # The middle column is small (width=1), forcing the inputs to be narrow.
+    # 3-Column Squeeze Layout
     col1, col2, col3 = st.columns([1, 0.8, 1]) 
     
     with col2:
@@ -159,7 +213,6 @@ tab_tutor, tab_arena, tab_codegen = st.tabs(["🤖 Tutor & Visuals", "⚔️ Cha
 with tab_tutor:
     col_chat, col_vis = st.columns([1.5, 1])
     
-    # Context-aware System Prompt
     system_prompt = f"""
     You are PyCoach, a friendly but strict Python Tutor.
     CURRENT LEVEL: {current_level}

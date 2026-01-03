@@ -14,6 +14,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Load Animation
 def load_lottieurl(url: str):
     try:
         r = requests.get(url)
@@ -24,7 +25,38 @@ def load_lottieurl(url: str):
 lottie_ai = load_lottieurl("https://lottie.host/02a52df2-2591-45da-9694-87890f5d7293/63126e7b-c36f-4091-a67b-240a9243764b.json")
 
 # ==========================================
-# 2. DARK MODE CSS & SECURITY FIXES
+# 2. REAL CODE EXECUTION ENGINE (PISTON API)
+# ==========================================
+def run_code_in_piston(source_code):
+    """
+    Sends code to the Piston API for secure execution.
+    Returns: (output, is_error)
+    """
+    api_url = "https://emkc.org/api/v2/piston/execute"
+    payload = {
+        "language": "python",
+        "version": "3.10.0",
+        "files": [{"content": source_code}]
+    }
+    try:
+        response = requests.post(api_url, json=payload)
+        result = response.json()
+        
+        # Check execution status
+        if "run" in result:
+            output = result["run"]["stdout"]
+            stderr = result["run"]["stderr"]
+            
+            if stderr:
+                return stderr, True  # Return Error
+            return output, False     # Return Success
+            
+    except Exception as e:
+        return f"System Error: {str(e)}", True
+    return "Unknown Execution Error", True
+
+# ==========================================
+# 3. DARK MODE CSS & SECURITY FIXES
 # ==========================================
 st.markdown("""
 <style>
@@ -42,7 +74,7 @@ st.markdown("""
         background-image: radial-gradient(circle at 50% 50%, #161B22 0%, #0E1117 100%);
     }
 
-    /* --- NUCLEAR OPTION: HIDE UI --- */
+    /* --- NUCLEAR OPTION: HIDE UI ELEMENTS --- */
     header[data-testid="stHeader"] { display: none !important; }
     [data-testid="stToolbar"] { display: none !important; }
     footer { display: none !important; }
@@ -105,7 +137,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. AUTHENTICATION LOGIC
+# 4. AUTHENTICATION LOGIC
 # ==========================================
 def check_login():
     if "authenticated" not in st.session_state:
@@ -147,7 +179,7 @@ def check_login():
 if not check_login(): st.stop()
 
 # ==========================================
-# 4. MAIN DASHBOARD
+# 5. MAIN DASHBOARD
 # ==========================================
 st.markdown("""<style>[data-testid="stSidebar"] { display: block; }</style>""", unsafe_allow_html=True)
 
@@ -175,6 +207,7 @@ with st.sidebar:
     st.subheader("📍 Roadmap")
     current_level = st.radio("Chapter:", list(SYLLABUS.keys()))
     
+    # Syllabus Lock Logic
     is_locked = False
     if st.session_state.user_role == "demo" and "Level 1" not in current_level and "Level 2" not in current_level:
         is_locked = True
@@ -188,11 +221,11 @@ with st.sidebar:
 def show_lock_screen(feature_name):
     st.markdown(f"""<div class="lock-card"><h1 style='color:#FF4B4B; font-family:Orbitron;'>🔒 RESTRICTED</h1><h3 style='color:white;'>{feature_name} is a PRO feature.</h3><p style='color:#AAA;'>Upgrade your SanRu Labs license.</p></div>""", unsafe_allow_html=True)
 
-# --- NEW 4-TAB LAYOUT ---
+# --- 4-TAB LAYOUT ---
 st.title("Pylo 🧬")
 tab_vis, tab_learn, tab_arena, tab_codegen = st.tabs(["👁️ Visualizer", "🧠 Learn", "⚔️ Arena", "⚡ Generator"])
 
-# TAB 1: VISUALIZER (CORE FEATURE)
+# TAB 1: VISUALIZER
 with tab_vis:
     st.header("👁️ Logic Visualizer")
     col_v1, col_v2 = st.columns([1, 1.5])
@@ -201,8 +234,7 @@ with tab_vis:
         st.caption("Paste your Python code below:")
         vis_code = st.text_area("Code Input:", height=200, placeholder="x = 10\nif x > 5:\n    print('Hello')")
         if st.button("✨ Visualize Flow", type="primary"):
-            if vis_code:
-                st.session_state.vis_trigger = vis_code
+            if vis_code: st.session_state.vis_trigger = vis_code
     
     with col_v2:
         with st.container(height=500, border=True):
@@ -215,21 +247,18 @@ with tab_vis:
                         if "```dot" in dot_code: dot_code = dot_code.split("```dot")[1].split("```")[0]
                         elif "```" in dot_code: dot_code = dot_code.split("```")[1].split("```")[0]
                         st.graphviz_chart(dot_code)
-                    except:
-                        st.error("Could not visualize code syntax.")
-            else:
-                st.info("👈 Enter code on the left to generate a diagram.")
+                    except: st.error("Could not visualize code syntax.")
+            else: st.info("👈 Enter code to visualize.")
 
-# TAB 2: LEARN (CHATBOT)
+# TAB 2: LEARN
 with tab_learn:
-    if is_locked:
-        show_lock_screen(f"Tuition for {current_level}")
+    if is_locked: show_lock_screen(f"Tuition for {current_level}")
     else:
         st.header("🧠 AI Tutor")
         system_prompt = f"You are Pylo. Level: {current_level}. Topics: {SYLLABUS[current_level]}. Keep it short."
         
         if "messages" not in st.session_state:
-            st.session_state.messages = [{"role": "assistant", "content": "Hello! I am ready to teach. Ask me anything about this topic."}]
+            st.session_state.messages = [{"role": "assistant", "content": "Hello! I am ready to teach. Ask me anything."}]
 
         for msg in st.session_state.messages:
             with st.chat_message(msg["role"]): st.markdown(msg["content"])
@@ -243,37 +272,61 @@ with tab_learn:
                 response = st.write_stream(chunk.choices[0].delta.content for chunk in completion if chunk.choices[0].delta.content)
             st.session_state.messages.append({"role": "assistant", "content": response})
 
-# TAB 3: ARENA (CHALLENGE)
+# TAB 3: ARENA (WITH REAL COMPILER)
 with tab_arena:
     st.header(f"⚔️ {current_level} Challenge")
     if "arena_attempts" not in st.session_state: st.session_state.arena_attempts = 0
+    
     col_q, col_code = st.columns([1, 1.5])
     
-    if "current_challenge" not in st.session_state: st.session_state.current_challenge = "Awaiting Generation..."
-        
+    # Left: Challenge Generator
     with col_q:
+        if "current_challenge" not in st.session_state: st.session_state.current_challenge = "Click Generate to start!"
+            
         if st.button("🎲 Generate Problem", type="primary"):
             if st.session_state.user_role == "demo" and st.session_state.arena_attempts >= 2:
                 st.error("🚫 TRIAL LIMIT REACHED (2/2)")
             else:
                 st.session_state.arena_attempts += 1
-                with st.spinner("Computing..."):
-                    q_prompt = f"Create a short Python coding challenge for {current_level}."
+                with st.spinner("Designing Challenge..."):
+                    q_prompt = f"Create a short Python coding challenge for {current_level}. Requirements: 1. Clear Task. 2. Expected Output."
                     q_resp = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": q_prompt}])
                     st.session_state.current_challenge = q_resp.choices[0].message.content
+        
         if st.session_state.user_role == "demo": st.caption(f"Trial Usage: {st.session_state.arena_attempts}/2")
-        st.markdown(st.session_state.current_challenge)
+        with st.container(height=400, border=True): st.markdown(st.session_state.current_challenge)
 
+    # Right: IDE & Terminal
     with col_code:
-        st.subheader("Solution Terminal:")
-        user_code = st.text_area("Input Code...", height=300, key="code_editor_arena")
-        if st.button("🚀 Execute & Grade"):
-            with st.spinner("Analyzing..."):
-                grade_prompt = f"Task: {st.session_state.current_challenge}. User Code: {user_code}. Grade it."
-                grade_resp = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": grade_prompt}])
-                st.success("Analysis Complete"); st.markdown(grade_resp.choices[0].message.content)
+        st.subheader("💻 IDE")
+        user_code = st.text_area("Write Python Code:", height=300, key="code_editor_arena", placeholder="print('Hello World')")
+        
+        col_run, col_grade = st.columns(2)
+        run_click = col_run.button("▶️ Run Code", use_container_width=True)
+        grade_click = col_grade.button("✅ Submit & Grade", use_container_width=True)
+        
+        st.write("---")
+        st.caption("🖥️ Terminal Output:")
+        
+        # Real Execution Logic
+        if run_click:
+            if user_code:
+                with st.spinner("Executing..."):
+                    output, is_error = run_code_in_piston(user_code)
+                    if is_error: st.error(output)
+                    else: st.code(output, language="text")
+            else: st.warning("⚠️ Terminal is empty.")
 
-# TAB 4: GENERATOR (CODEGEN)
+        # AI Grading Logic (Checks Real Output First)
+        if grade_click:
+            if user_code:
+                with st.spinner("Analyzing..."):
+                    real_output, run_err = run_code_in_piston(user_code)
+                    grade_prompt = f"Task: {st.session_state.current_challenge}\nCode: {user_code}\nOutput: {real_output}\nError: {run_err}\nGrade this."
+                    grade_resp = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": grade_prompt}])
+                    st.markdown(grade_resp.choices[0].message.content)
+
+# TAB 4: GENERATOR
 with tab_codegen:
     if st.session_state.user_role == "demo": show_lock_screen("Instant Code Generator")
     else:

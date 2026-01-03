@@ -3,3 +3,4 @@ groq
 graphviz
 streamlit-lottie
 requests
+supabase

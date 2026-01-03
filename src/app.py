@@ -12,7 +12,7 @@ st.set_page_config(
     page_title="Pylo | SanRu Labs",
     page_icon="🧬",
     layout="wide",
-    initial_sidebar_state="collapsed" # Starts closed, but user can open it
+    initial_sidebar_state="expanded"  # <--- FIX: FORCE SIDEBAR OPEN
 )
 
 # Initialize Supabase
@@ -48,6 +48,7 @@ lottie_ai = load_lottieurl("https://lottie.host/02a52df2-2591-45da-9694-87890f5d
 # 2. CORE ENGINES
 # ==========================================
 def run_code_in_piston(source_code):
+    """Execute code via Piston API"""
     api_url = "https://emkc.org/api/v2/piston/execute"
     payload = {"language": "python", "version": "3.10.0", "files": [{"content": source_code}]}
     try:
@@ -59,6 +60,7 @@ def run_code_in_piston(source_code):
     return "Error", "System Execution Failed"
 
 def get_user_stats(email):
+    """Fetch or Create User in Supabase"""
     if not supabase: return {"xp": 0, "level": 1}
     try:
         response = supabase.table("user_stats").select("*").eq("email", email).execute()
@@ -70,6 +72,7 @@ def get_user_stats(email):
     except: return {"xp": 0, "level": 1}
 
 def update_xp(email, amount):
+    """Update XP and Level"""
     if not supabase: return 0, 1
     try:
         current = get_user_stats(email)
@@ -81,7 +84,7 @@ def update_xp(email, amount):
     except: return 0, 1
 
 # ==========================================
-# 3. GLOBAL CSS (Fonts & Colors)
+# 3. GLOBAL CSS (FIXED SIDEBAR VISIBILITY)
 # ==========================================
 st.markdown("""
 <style>
@@ -90,10 +93,23 @@ st.markdown("""
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; color: #E0E0E0; }
     .stApp { background-color: #0E1117; background-image: radial-gradient(circle at 50% 50%, #161B22 0%, #0E1117 100%); }
 
-    /* HIDE FOOTER & DECORATION ALWAYS */
-    [data-testid="stDecoration"] { display: none; }
-    .stDeployButton { display: none; }
-    footer { display: none; }
+    /* --- SIDEBAR VISIBILITY FIX --- */
+    /* 1. We Keep stHeader visible so the Sidebar Arrow (Top-Left) is clickable */
+    [data-testid="stHeader"] { 
+        display: block !important; 
+        background-color: transparent !important; /* Make it blend in */
+    }
+
+    /* 2. We hide the Toolbar (Top-Right: GitHub/Manage App) */
+    [data-testid="stToolbar"] { 
+        visibility: hidden !important; 
+        pointer-events: none !important; /* Prevent accidental clicks */
+    }
+    
+    /* 3. Hide Decoration Bar & Footer */
+    [data-testid="stDecoration"] { display: none !important; }
+    .stDeployButton { display: none !important; }
+    footer { display: none !important; }
 
     /* CUSTOM CARDS */
     .login-container { background: rgba(20, 20, 30, 0.7); backdrop-filter: blur(12px); padding: 50px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1); }
@@ -102,7 +118,7 @@ st.markdown("""
     .label-text { font-size: 10px; color: #888; text-transform: uppercase; }
     .lock-card { background-color: #1a1a2e; border: 1px solid #FF4B4B; padding: 40px; border-radius: 15px; text-align: center; margin-top: 50px; }
     
-    /* INPUTS & EDITOR */
+    /* INPUTS */
     .stTextInput input { background-color: #1F2329 !important; color: white !important; border: 1px solid #333; }
     .stTextArea textarea { font-family: 'Courier New', monospace; background-color: #111 !important; color: #00FF99 !important; border: 1px solid #333; }
     
@@ -113,88 +129,71 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 4. AUTH & LOGIN FLOW
+# 4. AUTH FLOW
 # ==========================================
 def check_login():
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
         st.session_state.user_role = "student"
 
-    if not st.session_state.authenticated:
-        # --- LOGIN STATE CSS: HIDE EVERYTHING ---
-        st.markdown("""
-        <style>
-            [data-testid="stSidebar"] { display: none; }
-            [data-testid="stHeader"] { display: none; } /* Hide Header only during login */
-            [data-testid="stToolbar"] { display: none; }
-        </style>
-        """, unsafe_allow_html=True)
-        
-        # LOGIN SCREEN
-        col1, col2 = st.columns([1.2, 1])
-        with col1:
-            st.write(""); st.write(""); st.write("")
-            if lottie_ai: st_lottie(lottie_ai, height=500, key="ai_anim")
-        with col2:
-            st.write(""); st.write("")
-            with st.container():
-                st.markdown('<div class="product-title">Pylo</div>', unsafe_allow_html=True)
-                st.markdown('<p class="tagline">Intelligent Coding Environment.<br>Powered by <b>SanRu Labs</b>.</p>', unsafe_allow_html=True)
-                
-                email = st.text_input("ACCESS ID", placeholder="student@sanru.com")
-                password = st.text_input("SECURE KEY", type="password", placeholder="••••••••")
-                
-                st.write("")
-                if st.button("INITIALIZE SYSTEM"):
-                    if not email or not password:
-                        st.warning("⚠️ Enter Credentials")
+    # IF LOGGED IN: FORCE SIDEBAR VISIBLE
+    if st.session_state.authenticated:
+        st.markdown("""<style>[data-testid="stSidebar"] { display: block !important; }</style>""", unsafe_allow_html=True)
+        return True
+    
+    # IF NOT LOGGED IN: HIDE SIDEBAR & HEADER
+    st.markdown("""<style>[data-testid="stSidebar"] { display: none; } [data-testid="stHeader"] { display: none; }</style>""", unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([1.2, 1])
+    with col1:
+        st.write(""); st.write(""); st.write("")
+        if lottie_ai: st_lottie(lottie_ai, height=500, key="ai_anim")
+    with col2:
+        st.write(""); st.write("")
+        with st.container():
+            st.markdown('<div class="product-title">Pylo</div>', unsafe_allow_html=True)
+            st.markdown('<p class="tagline">Intelligent Coding Environment.<br>Powered by <b>SanRu Labs</b>.</p>', unsafe_allow_html=True)
+            
+            email = st.text_input("ACCESS ID", placeholder="student@sanru.com")
+            password = st.text_input("SECURE KEY", type="password", placeholder="••••••••")
+            
+            st.write("")
+            if st.button("INITIALIZE SYSTEM"):
+                if not email or not password:
+                    st.warning("⚠️ Enter Credentials")
+                else:
+                    users_db = st.secrets.get("users", {})
+                    user_role = "student" # Default
+                    user_name = "Student"
+                    
+                    # Check Admin
+                    for _, details in users_db.items():
+                        if details["email"] == email and details["password"] == password:
+                            user_role = "admin" if email == "admin@pylo.com" else "demo"
+                            user_name = details["name"]
+                    
+                    st.session_state.authenticated = True
+                    st.session_state.user_email = email
+                    st.session_state.user_name = user_name
+                    st.session_state.user_role = user_role
+                    
+                    # Sync DB
+                    if supabase:
+                        with st.spinner("Syncing Database..."):
+                            stats = get_user_stats(email)
+                            st.session_state.xp = stats.get('xp', 0)
+                            st.session_state.level = stats.get('level', 1)
                     else:
-                        users_db = st.secrets.get("users", {})
-                        user_role = "student"
-                        user_name = "Student"
+                        st.session_state.xp = 0; st.session_state.level = 1
                         
-                        for _, details in users_db.items():
-                            if details["email"] == email and details["password"] == password:
-                                user_role = "admin" if email == "admin@pylo.com" else "demo"
-                                user_name = details["name"]
-                        
-                        st.session_state.authenticated = True
-                        st.session_state.user_email = email
-                        st.session_state.user_name = user_name
-                        st.session_state.user_role = user_role
-                        
-                        if supabase:
-                            with st.spinner("Syncing Database..."):
-                                stats = get_user_stats(email)
-                                st.session_state.xp = stats.get('xp', 0)
-                                st.session_state.level = stats.get('level', 1)
-                        else:
-                            st.session_state.xp = 0; st.session_state.level = 1
-                            
-                        st.rerun()
-        return False
-
-    # --- APP STATE CSS: SHOW HEADER, HIDE ONLY TOOLBAR ---
-    st.markdown("""
-    <style>
-        /* Bring back the Header so the Arrow/Hamburger is visible */
-        [data-testid="stHeader"] { display: block !important; }
-        
-        /* Hide the Top-Right Menu (Github/Settings) */
-        [data-testid="stToolbar"] { visibility: hidden !important; }
-        
-        /* Bring back Sidebar */
-        [data-testid="stSidebar"] { display: block !important; }
-    </style>
-    """, unsafe_allow_html=True)
-    return True
+                    st.rerun()
+    return False
 
 if not check_login(): st.stop()
 
 # ==========================================
-# 5. MAIN DASHBOARD
+# 5. DASHBOARD
 # ==========================================
-
 SYLLABUS = {
     1: "The Basics (Variables)", 2: "Logic (If/Else)", 3: "Looping (For/While)",
     4: "Data Structures (Lists)", 5: "Functions", 6: "Advanced (OOP)"
@@ -203,11 +202,13 @@ SYLLABUS = {
 # --- SIDEBAR ---
 with st.sidebar:
     st.markdown('<h2 style="color:white; font-family:Orbitron;">Pylo 🧬</h2>', unsafe_allow_html=True)
+    
+    # ROLE BADGE
     if st.session_state.user_role == "admin": st.success("⚡ ADMIN MODE")
     elif st.session_state.user_role == "demo": st.warning("🧪 DEMO MODE")
     else: st.info("🎓 STUDENT MODE")
     
-    # GAMIFICATION STATS
+    # STATS
     c1, c2 = st.columns(2)
     with c1: st.markdown(f'<div class="stat-card"><div class="xp-text">{st.session_state.xp}</div><div class="label-text">TOTAL XP</div></div>', unsafe_allow_html=True)
     with c2: st.markdown(f'<div class="stat-card"><div class="xp-text">{st.session_state.level}</div><div class="label-text">LEVEL</div></div>', unsafe_allow_html=True)
@@ -220,6 +221,7 @@ with st.sidebar:
     selected_level_name = st.radio("Chapter:", [v for k,v in SYLLABUS.items()])
     current_level_num = [k for k,v in SYLLABUS.items() if v == selected_level_name][0]
     
+    # LOCK LOGIC
     is_locked = False
     if st.session_state.user_role != "admin" and current_level_num > 2: is_locked = True
     

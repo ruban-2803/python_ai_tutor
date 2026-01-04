@@ -12,7 +12,7 @@ st.set_page_config(
     page_title="Pylo | SanRu Labs",
     page_icon="🧬",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded" # Force Sidebar Open on Desktop
 )
 
 # Initialize Supabase
@@ -69,7 +69,6 @@ def update_xp(email, amount):
     try:
         current = get_user_stats(email)
         new_xp = current["xp"] + amount
-        # Level Up every 100 XP
         new_level = (new_xp // 100) + 1
         if new_level > 6: new_level = 6
         supabase.table("user_stats").update({"xp": new_xp, "level": new_level}).eq("email", email).execute()
@@ -77,7 +76,7 @@ def update_xp(email, amount):
     except: return 0, 1
 
 # ==========================================
-# 3. CSS Styling
+# 3. CSS Styling (FIXED SIDEBAR & CHAT)
 # ==========================================
 st.markdown("""
 <style>
@@ -85,12 +84,15 @@ st.markdown("""
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; color: #E0E0E0; }
     .stApp { background-color: #0E1117; background-image: radial-gradient(circle at 50% 50%, #161B22 0%, #0E1117 100%); }
     
-    /* Clean Sidebar */
-    [data-testid="stSidebar"] { border-right: 1px solid #333; }
-    
-    /* HIDE TOOLBAR BUT KEEP HEADER */
-    header[data-testid="stHeader"] { background: transparent; }
+    /* FORCE SIDEBAR VISIBLE ON DESKTOP */
+    [data-testid="stSidebar"] { 
+        display: block !important; 
+        border-right: 1px solid #333;
+    }
+
+    /* HIDE TOOLBAR ICONS (Github, etc) BUT KEEP HEADER FOR MENU */
     [data-testid="stToolbar"] { visibility: hidden; }
+    [data-testid="stDecoration"] { display: none; }
     footer { display: none; }
     
     /* CARDS */
@@ -182,7 +184,7 @@ with st.sidebar:
     
     st.divider()
     
-    # 2. SYLLABUS (Non-Clickable for Students, acts as Progress Map)
+    # 2. SYLLABUS
     st.subheader("🗺️ Your Journey")
     for lvl, info in SYLLABUS.items():
         if lvl < st.session_state.level:
@@ -196,111 +198,106 @@ with st.sidebar:
     if st.button("Log Out"): st.session_state.authenticated = False; st.rerun()
 
 # ==========================================
-# 6. MAIN APP (THE NEW FLOW)
+# 6. MAIN APP
 # ==========================================
 curr_lvl_info = SYLLABUS[st.session_state.level]
 
 st.title(f"Level {st.session_state.level}: {curr_lvl_info['title']}")
 st.caption(curr_lvl_info['desc'])
 
-# NEW TAB ORDER
-tab_class, tab_lab, tab_arena = st.tabs(["🧠 The Classroom", "🧪 The Lab (Visualizer)", "⚔️ The Boss Fight"])
+# TABS
+tab_class, tab_lab, tab_arena = st.tabs(["🧠 The Classroom", "🧪 The Lab", "⚔️ The Boss Fight"])
 
-# --- TAB 1: THE CLASSROOM (ACTIVE TUTOR) ---
+# --- TAB 1: THE CLASSROOM (SCROLLABLE CHAT) ---
 with tab_class:
-    # Initialize Chat History with a PROACTIVE greeting if empty
+    # 1. CHAT CONTAINER (This keeps messages inside a scrollable box)
+    chat_container = st.container(height=500)
+    
+    # Initialize Chat
     if "messages" not in st.session_state:
-        intro_msg = f"Welcome to Level {st.session_state.level}. I am Pylo, your teacher. Today we are learning about **{curr_lvl_info['title']}**. Shall we start with the first concept?"
+        intro_msg = f"Welcome to Level {st.session_state.level}. I am Pylo, your teacher. We are learning **{curr_lvl_info['title']}**. Shall we start?"
         st.session_state.messages = [{"role": "assistant", "content": intro_msg}]
 
-    # Display Chat
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]): st.markdown(msg["content"])
+    # Display Chat INSIDE container
+    with chat_container:
+        for msg in st.session_state.messages:
+            with st.chat_message(msg["role"]): st.markdown(msg["content"])
     
-    # Chat Input
+    # 2. INPUT BAR (Automatically pins to bottom)
     if prompt := st.chat_input("Answer Pylo or ask a question..."):
+        # Add User Message
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"): st.markdown(prompt)
+        with chat_container:
+            with st.chat_message("user"): st.markdown(prompt)
         
-        # ACTIVE TEACHER PROMPT
-        system_prompt = f"""
-        You are Pylo, a friendly but structured Python teacher. 
-        The student is at Level {st.session_state.level}: {curr_lvl_info['title']}.
-        
-        YOUR GOAL: Teach them the concept step-by-step.
-        1. Do NOT dump information. Explain one concept, then ASK A QUESTION to check understanding.
-        2. If they get it wrong, correct them gently and ask again.
-        3. If they get it right, praise them and move to the next concept.
-        4. Keep responses short (max 3 sentences).
-        5. Encourage them to go to the "Lab" tab to visualize code if they seem confused.
-        """
-        
-        with st.chat_message("assistant"):
-            stream = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "system", "content": system_prompt}] + st.session_state.messages,
-                stream=True
-            )
-            response = st.write_stream(chunk.choices[0].delta.content for chunk in stream if chunk.choices[0].delta.content)
+            # AI Response
+            system_prompt = f"""
+            You are Pylo, a Python teacher. Student Level: {st.session_state.level}.
+            Topic: {curr_lvl_info['title']}.
+            GOAL: Teach step-by-step. Ask 1 question at a time.
+            Keep it short.
+            """
+            
+            with st.chat_message("assistant"):
+                stream = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "system", "content": system_prompt}] + st.session_state.messages,
+                    stream=True
+                )
+                response = st.write_stream(chunk.choices[0].delta.content for chunk in stream if chunk.choices[0].delta.content)
+            
         st.session_state.messages.append({"role": "assistant", "content": response})
+        # Note: In Streamlit, st.chat_input triggers a rerun, so we don't need manual reruns here.
 
-# --- TAB 2: THE LAB (VISUALIZER) ---
+# --- TAB 2: THE LAB ---
 with tab_lab:
-    st.info("💡 **Tip:** Use this space to test what you learned in the Classroom. See how the computer thinks!")
-    
+    st.info("💡 **Tip:** Test your code here to see the Flowchart.")
     col_v1, col_v2 = st.columns([1, 1.5])
     with col_v1:
-        vis_code = st.text_area("Type your code here:", height=200, placeholder="x = 10\ny = 20\nprint(x + y)")
-        if st.button("👁️ Visualize Logic", type="primary"):
+        vis_code = st.text_area("Type Code:", height=200, placeholder="x = 10\nprint(x)")
+        if st.button("👁️ Visualize", type="primary"):
              if vis_code: st.session_state.vis_trigger = vis_code
-    
     with col_v2:
         with st.container(height=500, border=True):
             if "vis_trigger" in st.session_state:
-                with st.spinner("Drawing Flowchart..."):
+                with st.spinner("Drawing..."):
                     try:
                         req = f"Convert Python to Graphviz DOT (only code): {st.session_state.vis_trigger}"
                         res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user", "content": req}])
                         dot = res.choices[0].message.content
                         if "```dot" in dot: dot = dot.split("```dot")[1].split("```")[0]
                         st.graphviz_chart(dot)
-                    except: st.error("Could not visualize.")
-            else:
-                st.markdown("### 👈 Draw Your Code\nType code on the left to see the flowchart here.")
+                    except: st.error("Error.")
+            else: st.markdown("### 👈 Draw Your Code")
 
-# --- TAB 3: THE ARENA (EXAM) ---
+# --- TAB 3: THE ARENA ---
 with tab_arena:
-    st.error(f"🛑 **Gatekeeper:** You must pass this challenge to unlock Level {st.session_state.level + 1}.")
-    
+    st.error(f"🛑 **Exam:** Pass this to unlock Level {st.session_state.level + 1}.")
     c1, c2 = st.columns([1, 1.5])
-    if "curr_chal" not in st.session_state: st.session_state.curr_chal = "Click Generate to start the exam."
+    if "curr_chal" not in st.session_state: st.session_state.curr_chal = "Click Generate Exam."
     
     with c1:
-        if st.button("🎲 Generate Exam Problem"):
-            with st.spinner("Creating Exam..."):
-                p = f"Create a beginner Python coding problem about {curr_lvl_info['title']}. Task + Expected Output."
+        if st.button("🎲 Generate Exam"):
+            with st.spinner("Creating..."):
+                p = f"Create a Python coding problem about {curr_lvl_info['title']}."
                 r = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":p}])
                 st.session_state.curr_chal = r.choices[0].message.content
         st.markdown(st.session_state.curr_chal)
     
     with c2:
-        ans = st.text_area("Your Solution:", height=300)
-        if st.button("🚀 Submit Final Exam"):
+        ans = st.text_area("Solution:", height=300)
+        if st.button("🚀 Submit Exam"):
             out, err = run_code_in_piston(ans)
-            if err: st.error(f"❌ Syntax Error:\n{out}")
+            if err: st.error(f"❌ Error:\n{out}")
             else:
                 st.success(f"✅ Output:\n{out}")
-                # AI Grading
-                grade_p = f"Problem: {st.session_state.curr_chal}\nCode: {ans}\nOutput: {out}\nDid they solve it correctly? Answer YES or NO."
+                grade_p = f"Problem: {st.session_state.curr_chal}\nCode: {ans}\nOutput: {out}\nCorrect? YES or NO."
                 grade_res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":grade_p}])
                 
                 if "YES" in grade_res.choices[0].message.content.upper():
                     st.balloons()
-                    # 100 XP REWARD for passing exam
                     nx, nl = update_xp(st.session_state.user_email, 100)
-                    st.session_state.xp = nx
-                    st.session_state.level = nl
-                    st.toast(f"🎉 LEVEL UP! You are now Level {nl}")
+                    st.session_state.xp = nx; st.session_state.level = nl
+                    st.toast(f"🎉 LEVEL UP! Level {nl}")
                     st.rerun()
-                else:
-                    st.warning("⚠️ Incorrect Logic. The teacher is watching. Try again.")
+                else: st.warning("⚠️ Incorrect.")

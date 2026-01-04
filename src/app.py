@@ -12,7 +12,7 @@ st.set_page_config(
     page_title="Pylo | SanRu Labs",
     page_icon="🧬",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded" # 1. FORCE OPEN
 )
 
 # Initialize Supabase
@@ -76,7 +76,7 @@ def update_xp(email, amount):
     except: return 0, 1
 
 # ==========================================
-# 3. CSS Styling (HEADER RESTORED)
+# 3. CSS Styling (THE SIDEBAR LOCK)
 # ==========================================
 st.markdown("""
 <style>
@@ -84,15 +84,18 @@ st.markdown("""
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; color: #E0E0E0; }
     .stApp { background-color: #0E1117; background-image: radial-gradient(circle at 50% 50%, #161B22 0%, #0E1117 100%); }
     
-    /* RESTORE HEADER (So Sidebar Button Works) */
+    /* --- 1. RESTORE HEADER (For Mobile Support) --- */
     header { visibility: visible !important; }
     
-    /* HIDE ONLY FOOTER & DEPLOY BUTTON */
+    /* --- 2. HIDE THE SIDEBAR TOGGLE ARROW (THE LOCK) --- */
+    [data-testid="stSidebarCollapsedControl"] {
+        display: none !important;
+    }
+    
+    /* --- 3. CLEAN UP UI --- */
     footer { display: none; }
     .stDeployButton { display: none; }
     [data-testid="stDecoration"] { display: none; }
-    
-    /* Clean Sidebar */
     [data-testid="stSidebar"] { border-right: 1px solid #333; }
     
     /* CARDS */
@@ -115,7 +118,9 @@ def check_login():
 
     if st.session_state.authenticated: return True
     
-    # LOGIN SCREEN (Hides sidebar via Python logic)
+    # LOGIN SCREEN (Force Sidebar Hidden Here)
+    st.markdown("""<style>[data-testid="stSidebar"] { display: none; }</style>""", unsafe_allow_html=True)
+    
     col1, col2 = st.columns([1.2, 1])
     with col1:
         st.write(""); st.write("")
@@ -168,7 +173,7 @@ SYLLABUS = {
     6: {"title": "Object Oriented", "desc": "Classes & Objects"}
 }
 
-# --- STATIC SIDEBAR ---
+# --- STATIC SIDEBAR (LOCKED OPEN) ---
 with st.sidebar:
     st.markdown('<h2 style="font-family:Orbitron; color:white;">Pylo 🧬</h2>', unsafe_allow_html=True)
     

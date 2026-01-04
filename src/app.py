@@ -38,13 +38,13 @@ def load_lottieurl(url: str):
         return r.json()
     except: return None
 
-lottie_ai = load_lottieurl("https://lottie.host/02a52df2-2591-45da-9694-87890f5d7293/63126e7b-c36f-4091-a67b-240a9243764b.json")
+lottie_ai = load_lottieurl("[https://lottie.host/02a52df2-2591-45da-9694-87890f5d7293/63126e7b-c36f-4091-a67b-240a9243764b.json](https://lottie.host/02a52df2-2591-45da-9694-87890f5d7293/63126e7b-c36f-4091-a67b-240a9243764b.json)")
 
 # ==========================================
 # 2. CORE ENGINES
 # ==========================================
 def run_code_in_piston(source_code):
-    api_url = "https://emkc.org/api/v2/piston/execute"
+    api_url = "[https://emkc.org/api/v2/piston/execute](https://emkc.org/api/v2/piston/execute)"
     payload = {"language": "python", "version": "3.10.0", "files": [{"content": source_code}]}
     try:
         response = requests.post(api_url, json=payload)
@@ -76,21 +76,19 @@ def update_xp(email, amount):
     except: return 0, 1
 
 # ==========================================
-# 3. CSS Styling (LOCKED SIDEBAR)
+# 3. CSS Styling
 # ==========================================
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@300;400;600&display=swap');
+    @import url('[https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@300;400;600&display=swap](https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@300;400;600&display=swap)');
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; color: #E0E0E0; }
     .stApp { background-color: #0E1117; background-image: radial-gradient(circle at 50% 50%, #161B22 0%, #0E1117 100%); }
     
-    /* 1. RESTORE HEADER */
+    /* RESTORE HEADER & LOCK SIDEBAR */
     header { visibility: visible !important; }
-    
-    /* 2. HIDE SIDEBAR TOGGLE (LOCK IT OPEN) */
     [data-testid="stSidebarCollapsedControl"] { display: none !important; }
     
-    /* 3. CLEAN UI */
+    /* CLEAN UI */
     footer { display: none; }
     .stDeployButton { display: none; }
     [data-testid="stDecoration"] { display: none; }
@@ -221,14 +219,16 @@ with tab_class:
         with chat_container:
             with st.chat_message("user"): st.markdown(prompt)
             
-            # UPDATED PROMPT: Tells student to use the Lab Tab
+            # --- THE FIX: STRICT CODE FORMATTING INSTRUCTION ---
             system_prompt = f"""
             You are Pylo, a Python teacher. Level: {st.session_state.level}. Topic: {curr_lvl_info['title']}.
             
-            IMPORTANT: If you give the student a code example, tell them: 
-            "Copy this code and go to 'The Lab' tab to run it!"
+            IMPORTANT RULES:
+            1. If you show code, you MUST format it in a Multi-Line Block using triple backticks (```python).
+            2. NEVER write code in a single line (e.g. 'name="x" print(name)' is BANNED).
+            3. Tell the student: "Copy this code and go to 'The Lab' tab to run it!"
             
-            Teach step-by-step. Short answers.
+            Keep explanations short (2-3 sentences).
             """
             
             with st.chat_message("assistant"):
@@ -248,23 +248,18 @@ with tab_lab:
     col_v1, col_v2 = st.columns([1, 1.5])
     
     with col_v1:
-        vis_code = st.text_area("Write Python Code:", height=250, placeholder="print('Hello World')")
-        
-        # TWO BUTTONS: RUN or VISUALIZE
+        vis_code = st.text_area("Write Python Code:", height=250, placeholder="x = 10\nprint(x)")
         c_run, c_vis = st.columns(2)
         run_click = c_run.button("▶️ Run Code", type="primary", use_container_width=True)
         vis_click = c_vis.button("👁️ Visualize", use_container_width=True)
     
     with col_v2:
         with st.container(height=500, border=True):
-            # Logic for RUNNING
             if run_click and vis_code:
                 st.markdown("### 🖥️ Terminal Output")
                 out, err = run_code_in_piston(vis_code)
                 if err: st.error(out)
                 else: st.code(out, language="text")
-            
-            # Logic for VISUALIZING
             elif vis_click and vis_code:
                 st.markdown("### 🧬 Logic Flowchart")
                 with st.spinner("Drawing..."):
@@ -275,9 +270,8 @@ with tab_lab:
                         if "```dot" in dot: dot = dot.split("```dot")[1].split("```")[0]
                         st.graphviz_chart(dot)
                     except: st.error("Error drawing graph.")
-            
             else:
-                st.markdown("### 👈 Result Area\nClick 'Run' to see output or 'Visualize' to see the flowchart.")
+                st.markdown("### 👈 Result Area\nClick 'Run' for output or 'Visualize' for flowcharts.")
 
 # --- TAB 3: ARENA ---
 with tab_arena:

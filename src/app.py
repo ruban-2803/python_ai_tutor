@@ -12,7 +12,7 @@ st.set_page_config(
     page_title="Pylo | SanRu Labs",
     page_icon="🧬",
     layout="wide",
-    initial_sidebar_state="expanded"  # <--- FIX: FORCE SIDEBAR OPEN
+    initial_sidebar_state="expanded"
 )
 
 # Initialize Supabase
@@ -22,17 +22,13 @@ def init_supabase():
         url = st.secrets["supabase"]["url"]
         key = st.secrets["supabase"]["key"]
         return create_client(url, key)
-    except:
-        return None
+    except: return None
 
 supabase = init_supabase()
 
 # Initialize Groq
-try:
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-except:
-    st.error("⚠️ API Key Error: Check secrets.toml")
-    st.stop()
+try: client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+except: st.error("⚠️ API Key Error"); st.stop()
 
 # Load Animation
 def load_lottieurl(url: str):
@@ -48,19 +44,16 @@ lottie_ai = load_lottieurl("https://lottie.host/02a52df2-2591-45da-9694-87890f5d
 # 2. CORE ENGINES
 # ==========================================
 def run_code_in_piston(source_code):
-    """Execute code via Piston API"""
     api_url = "https://emkc.org/api/v2/piston/execute"
     payload = {"language": "python", "version": "3.10.0", "files": [{"content": source_code}]}
     try:
         response = requests.post(api_url, json=payload)
         result = response.json()
-        if "run" in result:
-            return result["run"]["stdout"], result["run"]["stderr"]
+        if "run" in result: return result["run"]["stdout"], result["run"]["stderr"]
     except: pass
     return "Error", "System Execution Failed"
 
 def get_user_stats(email):
-    """Fetch or Create User in Supabase"""
     if not supabase: return {"xp": 0, "level": 1}
     try:
         response = supabase.table("user_stats").select("*").eq("email", email).execute()
@@ -72,11 +65,11 @@ def get_user_stats(email):
     except: return {"xp": 0, "level": 1}
 
 def update_xp(email, amount):
-    """Update XP and Level"""
     if not supabase: return 0, 1
     try:
         current = get_user_stats(email)
         new_xp = current["xp"] + amount
+        # Level Up every 100 XP
         new_level = (new_xp // 100) + 1
         if new_level > 6: new_level = 6
         supabase.table("user_stats").update({"xp": new_xp, "level": new_level}).eq("email", email).execute()
@@ -84,47 +77,29 @@ def update_xp(email, amount):
     except: return 0, 1
 
 # ==========================================
-# 3. GLOBAL CSS (FIXED SIDEBAR VISIBILITY)
+# 3. CSS Styling
 # ==========================================
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@300;400;600&display=swap');
-    
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; color: #E0E0E0; }
     .stApp { background-color: #0E1117; background-image: radial-gradient(circle at 50% 50%, #161B22 0%, #0E1117 100%); }
-
-    /* --- SIDEBAR VISIBILITY FIX --- */
-    /* 1. We Keep stHeader visible so the Sidebar Arrow (Top-Left) is clickable */
-    [data-testid="stHeader"] { 
-        display: block !important; 
-        background-color: transparent !important; /* Make it blend in */
-    }
-
-    /* 2. We hide the Toolbar (Top-Right: GitHub/Manage App) */
-    [data-testid="stToolbar"] { 
-        visibility: hidden !important; 
-        pointer-events: none !important; /* Prevent accidental clicks */
-    }
     
-    /* 3. Hide Decoration Bar & Footer */
-    [data-testid="stDecoration"] { display: none !important; }
-    .stDeployButton { display: none !important; }
-    footer { display: none !important; }
-
-    /* CUSTOM CARDS */
-    .login-container { background: rgba(20, 20, 30, 0.7); backdrop-filter: blur(12px); padding: 50px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1); }
-    .stat-card { background: #1F2329; border: 1px solid #333; padding: 10px; border-radius: 8px; text-align: center; }
-    .xp-text { font-size: 22px; font-weight: bold; color: #FF4B4B; font-family: 'Orbitron'; }
+    /* Clean Sidebar */
+    [data-testid="stSidebar"] { border-right: 1px solid #333; }
+    
+    /* HIDE TOOLBAR BUT KEEP HEADER */
+    header[data-testid="stHeader"] { background: transparent; }
+    [data-testid="stToolbar"] { visibility: hidden; }
+    footer { display: none; }
+    
+    /* CARDS */
+    .stat-card { background: #1F2329; border: 1px solid #333; padding: 15px; border-radius: 10px; text-align: center; }
+    .xp-text { font-size: 24px; font-weight: bold; color: #FF4B4B; font-family: 'Orbitron'; }
     .label-text { font-size: 10px; color: #888; text-transform: uppercase; }
-    .lock-card { background-color: #1a1a2e; border: 1px solid #FF4B4B; padding: 40px; border-radius: 15px; text-align: center; margin-top: 50px; }
     
-    /* INPUTS */
-    .stTextInput input { background-color: #1F2329 !important; color: white !important; border: 1px solid #333; }
-    .stTextArea textarea { font-family: 'Courier New', monospace; background-color: #111 !important; color: #00FF99 !important; border: 1px solid #333; }
-    
-    /* TYPOGRAPHY */
-    .product-title { font-family: 'Orbitron'; font-size: 48px; font-weight: 900; background: linear-gradient(90deg, #FF4B4B, #FF914D); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .tagline { font-size: 14px; color: #AAA; letter-spacing: 1px; text-transform: uppercase; }
+    /* CHAT BUBBLES */
+    .stChatMessage { background-color: rgba(255,255,255,0.05); border-radius: 10px; border: 1px solid #333; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -136,193 +111,196 @@ def check_login():
         st.session_state.authenticated = False
         st.session_state.user_role = "student"
 
-    # IF LOGGED IN: FORCE SIDEBAR VISIBLE
-    if st.session_state.authenticated:
-        st.markdown("""<style>[data-testid="stSidebar"] { display: block !important; }</style>""", unsafe_allow_html=True)
-        return True
+    if st.session_state.authenticated: return True
     
-    # IF NOT LOGGED IN: HIDE SIDEBAR & HEADER
-    st.markdown("""<style>[data-testid="stSidebar"] { display: none; } [data-testid="stHeader"] { display: none; }</style>""", unsafe_allow_html=True)
-    
+    # LOGIN SCREEN (Hides sidebar via Python logic)
     col1, col2 = st.columns([1.2, 1])
     with col1:
-        st.write(""); st.write(""); st.write("")
+        st.write(""); st.write("")
         if lottie_ai: st_lottie(lottie_ai, height=500, key="ai_anim")
     with col2:
         st.write(""); st.write("")
         with st.container():
-            st.markdown('<div class="product-title">Pylo</div>', unsafe_allow_html=True)
-            st.markdown('<p class="tagline">Intelligent Coding Environment.<br>Powered by <b>SanRu Labs</b>.</p>', unsafe_allow_html=True)
+            st.markdown('<h1 style="font-family:Orbitron; font-size:48px; color:#FF4B4B;">Pylo</h1>', unsafe_allow_html=True)
+            st.caption("The AI Tutor that Grows with You.")
             
-            email = st.text_input("ACCESS ID", placeholder="student@sanru.com")
-            password = st.text_input("SECURE KEY", type="password", placeholder="••••••••")
+            email = st.text_input("Email", placeholder="student@sanru.com")
+            password = st.text_input("Password", type="password")
             
-            st.write("")
-            if st.button("INITIALIZE SYSTEM"):
-                if not email or not password:
-                    st.warning("⚠️ Enter Credentials")
-                else:
+            if st.button("Start Learning", type="primary"):
+                if email and password:
                     users_db = st.secrets.get("users", {})
-                    user_role = "student" # Default
-                    user_name = "Student"
+                    role = "student"
+                    name = "Student"
                     
-                    # Check Admin
-                    for _, details in users_db.items():
-                        if details["email"] == email and details["password"] == password:
-                            user_role = "admin" if email == "admin@pylo.com" else "demo"
-                            user_name = details["name"]
+                    for _, d in users_db.items():
+                        if d["email"] == email and d["password"] == password:
+                            role = "admin" if email == "admin@pylo.com" else "demo"
+                            name = d["name"]
                     
                     st.session_state.authenticated = True
                     st.session_state.user_email = email
-                    st.session_state.user_name = user_name
-                    st.session_state.user_role = user_role
+                    st.session_state.user_name = name
+                    st.session_state.user_role = role
                     
-                    # Sync DB
                     if supabase:
-                        with st.spinner("Syncing Database..."):
-                            stats = get_user_stats(email)
-                            st.session_state.xp = stats.get('xp', 0)
-                            st.session_state.level = stats.get('level', 1)
+                        stats = get_user_stats(email)
+                        st.session_state.xp = stats.get('xp', 0)
+                        st.session_state.level = stats.get('level', 1)
                     else:
                         st.session_state.xp = 0; st.session_state.level = 1
-                        
                     st.rerun()
     return False
 
 if not check_login(): st.stop()
 
 # ==========================================
-# 5. DASHBOARD
+# 5. SYLLABUS & CONTENT
 # ==========================================
 SYLLABUS = {
-    1: "The Basics (Variables)", 2: "Logic (If/Else)", 3: "Looping (For/While)",
-    4: "Data Structures (Lists)", 5: "Functions", 6: "Advanced (OOP)"
+    1: {"title": "The Basics", "desc": "Variables & Data Types"},
+    2: {"title": "Making Decisions", "desc": "If, Else, Booleans"},
+    3: {"title": "Looping", "desc": "For & While Loops"},
+    4: {"title": "Data Structures", "desc": "Lists & Dictionaries"},
+    5: {"title": "Functions", "desc": "Reusable Code"},
+    6: {"title": "Object Oriented", "desc": "Classes & Objects"}
 }
 
-# --- SIDEBAR ---
+# --- STATIC SIDEBAR ---
 with st.sidebar:
-    st.markdown('<h2 style="color:white; font-family:Orbitron;">Pylo 🧬</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 style="font-family:Orbitron; color:white;">Pylo 🧬</h2>', unsafe_allow_html=True)
     
-    # ROLE BADGE
-    if st.session_state.user_role == "admin": st.success("⚡ ADMIN MODE")
-    elif st.session_state.user_role == "demo": st.warning("🧪 DEMO MODE")
-    else: st.info("🎓 STUDENT MODE")
-    
-    # STATS
+    # 1. USER PROFILE
+    st.caption(f"Logged in as: {st.session_state.user_name}")
     c1, c2 = st.columns(2)
-    with c1: st.markdown(f'<div class="stat-card"><div class="xp-text">{st.session_state.xp}</div><div class="label-text">TOTAL XP</div></div>', unsafe_allow_html=True)
+    with c1: st.markdown(f'<div class="stat-card"><div class="xp-text">{st.session_state.xp}</div><div class="label-text">XP</div></div>', unsafe_allow_html=True)
     with c2: st.markdown(f'<div class="stat-card"><div class="xp-text">{st.session_state.level}</div><div class="label-text">LEVEL</div></div>', unsafe_allow_html=True)
     
     st.write("")
-    st.progress(min((st.session_state.xp % 100) / 100, 1.0), text=f"Next Level: {st.session_state.level + 1}")
+    st.progress(min((st.session_state.xp % 100) / 100, 1.0))
+    st.caption(f"Next Level at {(st.session_state.level * 100)} XP")
     
     st.divider()
-    st.subheader("📍 Roadmap")
-    selected_level_name = st.radio("Chapter:", [v for k,v in SYLLABUS.items()])
-    current_level_num = [k for k,v in SYLLABUS.items() if v == selected_level_name][0]
     
-    # LOCK LOGIC
-    is_locked = False
-    if st.session_state.user_role != "admin" and current_level_num > 2: is_locked = True
-    
-    if is_locked: st.error("🔒 LOCKED (Pro)")
-    else: st.info(f"Unit: {selected_level_name}")
-    
+    # 2. SYLLABUS (Non-Clickable for Students, acts as Progress Map)
+    st.subheader("🗺️ Your Journey")
+    for lvl, info in SYLLABUS.items():
+        if lvl < st.session_state.level:
+            st.markdown(f"✅ **Level {lvl}: {info['title']}**")
+        elif lvl == st.session_state.level:
+            st.markdown(f"📍 **Level {lvl}: {info['title']}** (Current)")
+        else:
+            st.markdown(f"🔒 *Level {lvl}: {info['title']}*")
+            
     st.divider()
     if st.button("Log Out"): st.session_state.authenticated = False; st.rerun()
 
-def show_lock_screen(feature_name):
-    st.markdown(f"""<div class="lock-card"><h1 style='color:#FF4B4B; font-family:Orbitron;'>🔒 RESTRICTED</h1><h3 style='color:white;'>{feature_name} is a PRO feature.</h3><p style='color:#AAA;'>Upgrade license to unlock.</p></div>""", unsafe_allow_html=True)
+# ==========================================
+# 6. MAIN APP (THE NEW FLOW)
+# ==========================================
+curr_lvl_info = SYLLABUS[st.session_state.level]
 
-# --- TABS ---
-st.title("Pylo 🧬")
-tab_vis, tab_learn, tab_arena, tab_codegen = st.tabs(["👁️ Visualizer", "🧠 Learn", "⚔️ Arena", "⚡ Generator"])
+st.title(f"Level {st.session_state.level}: {curr_lvl_info['title']}")
+st.caption(curr_lvl_info['desc'])
 
-# TAB 1: VISUALIZER
-with tab_vis:
-    st.header("👁️ Logic Visualizer")
+# NEW TAB ORDER
+tab_class, tab_lab, tab_arena = st.tabs(["🧠 The Classroom", "🧪 The Lab (Visualizer)", "⚔️ The Boss Fight"])
+
+# --- TAB 1: THE CLASSROOM (ACTIVE TUTOR) ---
+with tab_class:
+    # Initialize Chat History with a PROACTIVE greeting if empty
+    if "messages" not in st.session_state:
+        intro_msg = f"Welcome to Level {st.session_state.level}. I am Pylo, your teacher. Today we are learning about **{curr_lvl_info['title']}**. Shall we start with the first concept?"
+        st.session_state.messages = [{"role": "assistant", "content": intro_msg}]
+
+    # Display Chat
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]): st.markdown(msg["content"])
+    
+    # Chat Input
+    if prompt := st.chat_input("Answer Pylo or ask a question..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"): st.markdown(prompt)
+        
+        # ACTIVE TEACHER PROMPT
+        system_prompt = f"""
+        You are Pylo, a friendly but structured Python teacher. 
+        The student is at Level {st.session_state.level}: {curr_lvl_info['title']}.
+        
+        YOUR GOAL: Teach them the concept step-by-step.
+        1. Do NOT dump information. Explain one concept, then ASK A QUESTION to check understanding.
+        2. If they get it wrong, correct them gently and ask again.
+        3. If they get it right, praise them and move to the next concept.
+        4. Keep responses short (max 3 sentences).
+        5. Encourage them to go to the "Lab" tab to visualize code if they seem confused.
+        """
+        
+        with st.chat_message("assistant"):
+            stream = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "system", "content": system_prompt}] + st.session_state.messages,
+                stream=True
+            )
+            response = st.write_stream(chunk.choices[0].delta.content for chunk in stream if chunk.choices[0].delta.content)
+        st.session_state.messages.append({"role": "assistant", "content": response})
+
+# --- TAB 2: THE LAB (VISUALIZER) ---
+with tab_lab:
+    st.info("💡 **Tip:** Use this space to test what you learned in the Classroom. See how the computer thinks!")
+    
     col_v1, col_v2 = st.columns([1, 1.5])
     with col_v1:
-        st.caption("Paste Python Code:")
-        vis_code = st.text_area("Code Input:", height=200, placeholder="x=10\nif x>5:\n  print('Hi')")
-        if st.button("✨ Visualize", type="primary"): 
-            if vis_code: st.session_state.vis_trigger = vis_code
+        vis_code = st.text_area("Type your code here:", height=200, placeholder="x = 10\ny = 20\nprint(x + y)")
+        if st.button("👁️ Visualize Logic", type="primary"):
+             if vis_code: st.session_state.vis_trigger = vis_code
+    
     with col_v2:
         with st.container(height=500, border=True):
             if "vis_trigger" in st.session_state:
-                with st.spinner("Rendering..."):
+                with st.spinner("Drawing Flowchart..."):
                     try:
-                        graph_req = f"Convert to Graphviz DOT code (only code): {st.session_state.vis_trigger}"
-                        g_resp = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user", "content": graph_req}])
-                        dot = g_resp.choices[0].message.content
+                        req = f"Convert Python to Graphviz DOT (only code): {st.session_state.vis_trigger}"
+                        res = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user", "content": req}])
+                        dot = res.choices[0].message.content
                         if "```dot" in dot: dot = dot.split("```dot")[1].split("```")[0]
                         st.graphviz_chart(dot)
-                    except: st.error("Visualization Failed.")
-            else: st.info("👈 Enter code to visualize.")
-
-# TAB 2: LEARN
-with tab_learn:
-    if is_locked: show_lock_screen("AI Tutor")
-    else:
-        st.header("🧠 AI Tutor")
-        if "messages" not in st.session_state: st.session_state.messages = [{"role": "assistant", "content": "Ready to teach!"}]
-        for msg in st.session_state.messages: 
-            with st.chat_message(msg["role"]): st.markdown(msg["content"])
-        if prompt := st.chat_input("Ask Pylo..."):
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"): st.markdown(prompt)
-            sys_p = f"You are Pylo. Topic: {selected_level_name}. Keep it short."
-            res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"system","content":sys_p}]+st.session_state.messages)
-            bot_reply = res.choices[0].message.content
-            st.session_state.messages.append({"role": "assistant", "content": bot_reply})
-            with st.chat_message("assistant"): st.markdown(bot_reply)
-
-# TAB 3: ARENA
-with tab_arena:
-    st.header(f"⚔️ Challenge: {selected_level_name}")
-    col_q, col_code = st.columns([1, 1.5])
-    if "current_challenge" not in st.session_state: st.session_state.current_challenge = "Click Generate!"
-    if "arena_attempts" not in st.session_state: st.session_state.arena_attempts = 0
-    with col_q:
-        if st.button("🎲 New Problem", type="primary"):
-            if st.session_state.user_role != "admin" and st.session_state.arena_attempts >= 3:
-                st.error("🚫 DAILY LIMIT REACHED")
+                    except: st.error("Could not visualize.")
             else:
-                st.session_state.arena_attempts += 1
-                q_p = f"Create a Python challenge for {selected_level_name}."
-                q_r = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":q_p}])
-                st.session_state.current_challenge = q_r.choices[0].message.content
-        st.markdown(st.session_state.current_challenge)
-    with col_code:
-        user_code = st.text_area("Solution:", height=300, key="arena_code")
-        if st.button("🚀 Run & Submit"):
-            out, err = run_code_in_piston(user_code)
-            if err: st.error(f"❌ Error:\n{out}")
+                st.markdown("### 👈 Draw Your Code\nType code on the left to see the flowchart here.")
+
+# --- TAB 3: THE ARENA (EXAM) ---
+with tab_arena:
+    st.error(f"🛑 **Gatekeeper:** You must pass this challenge to unlock Level {st.session_state.level + 1}.")
+    
+    c1, c2 = st.columns([1, 1.5])
+    if "curr_chal" not in st.session_state: st.session_state.curr_chal = "Click Generate to start the exam."
+    
+    with c1:
+        if st.button("🎲 Generate Exam Problem"):
+            with st.spinner("Creating Exam..."):
+                p = f"Create a beginner Python coding problem about {curr_lvl_info['title']}. Task + Expected Output."
+                r = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":p}])
+                st.session_state.curr_chal = r.choices[0].message.content
+        st.markdown(st.session_state.curr_chal)
+    
+    with c2:
+        ans = st.text_area("Your Solution:", height=300)
+        if st.button("🚀 Submit Final Exam"):
+            out, err = run_code_in_piston(ans)
+            if err: st.error(f"❌ Syntax Error:\n{out}")
             else:
                 st.success(f"✅ Output:\n{out}")
-                grade_req = f"Task: {st.session_state.current_challenge}. Code: {user_code}. Output: {out}. Did they pass? Answer YES or NO."
-                grade_res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":grade_req}])
+                # AI Grading
+                grade_p = f"Problem: {st.session_state.curr_chal}\nCode: {ans}\nOutput: {out}\nDid they solve it correctly? Answer YES or NO."
+                grade_res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":grade_p}])
+                
                 if "YES" in grade_res.choices[0].message.content.upper():
                     st.balloons()
-                    if supabase:
-                        nx, nl = update_xp(st.session_state.user_email, 20)
-                        st.session_state.xp = nx; st.session_state.level = nl
-                        st.toast(f"🎉 +20 XP! Total: {nx}")
-                        st.rerun()
-                else: st.warning("⚠️ Logic Incorrect.")
-
-# TAB 4: GENERATOR
-with tab_codegen:
-    if st.session_state.user_role != "admin": show_lock_screen("Code Generator")
-    else:
-        st.header("⚡ Instant Generator")
-        c1, c2 = st.columns([1, 1.5])
-        with c1:
-            req = st.text_area("Requirements:", height=300)
-            if st.button("✨ Generate"): 
-                with st.spinner("Coding..."):
-                    res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":f"Write Python code for: {req}"}])
-                    st.session_state.gen_code = res.choices[0].message.content
-        with c2:
-            with st.container(height=600, border=True):
-                if "gen_code" in st.session_state: st.markdown(st.session_state.gen_code)
+                    # 100 XP REWARD for passing exam
+                    nx, nl = update_xp(st.session_state.user_email, 100)
+                    st.session_state.xp = nx
+                    st.session_state.level = nl
+                    st.toast(f"🎉 LEVEL UP! You are now Level {nl}")
+                    st.rerun()
+                else:
+                    st.warning("⚠️ Incorrect Logic. The teacher is watching. Try again.")

@@ -12,7 +12,7 @@ st.set_page_config(
     page_title="Pylo | SanRu Labs",
     page_icon="🧬",
     layout="wide",
-    initial_sidebar_state="expanded" # Force Sidebar Open on Desktop
+    initial_sidebar_state="expanded"
 )
 
 # Initialize Supabase
@@ -76,7 +76,7 @@ def update_xp(email, amount):
     except: return 0, 1
 
 # ==========================================
-# 3. CSS Styling (FIXED SIDEBAR & CHAT)
+# 3. CSS Styling (HEADER RESTORED)
 # ==========================================
 st.markdown("""
 <style>
@@ -84,16 +84,16 @@ st.markdown("""
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; color: #E0E0E0; }
     .stApp { background-color: #0E1117; background-image: radial-gradient(circle at 50% 50%, #161B22 0%, #0E1117 100%); }
     
-    /* FORCE SIDEBAR VISIBLE ON DESKTOP */
-    [data-testid="stSidebar"] { 
-        display: block !important; 
-        border-right: 1px solid #333;
-    }
-
-    /* HIDE TOOLBAR ICONS (Github, etc) BUT KEEP HEADER FOR MENU */
-    [data-testid="stToolbar"] { visibility: hidden; }
-    [data-testid="stDecoration"] { display: none; }
+    /* RESTORE HEADER (So Sidebar Button Works) */
+    header { visibility: visible !important; }
+    
+    /* HIDE ONLY FOOTER & DEPLOY BUTTON */
     footer { display: none; }
+    .stDeployButton { display: none; }
+    [data-testid="stDecoration"] { display: none; }
+    
+    /* Clean Sidebar */
+    [data-testid="stSidebar"] { border-right: 1px solid #333; }
     
     /* CARDS */
     .stat-card { background: #1F2329; border: 1px solid #333; padding: 15px; border-radius: 10px; text-align: center; }
@@ -210,7 +210,7 @@ tab_class, tab_lab, tab_arena = st.tabs(["🧠 The Classroom", "🧪 The Lab", "
 
 # --- TAB 1: THE CLASSROOM (SCROLLABLE CHAT) ---
 with tab_class:
-    # 1. CHAT CONTAINER (This keeps messages inside a scrollable box)
+    # 1. CHAT CONTAINER (Scrollable)
     chat_container = st.container(height=500)
     
     # Initialize Chat
@@ -223,14 +223,15 @@ with tab_class:
         for msg in st.session_state.messages:
             with st.chat_message(msg["role"]): st.markdown(msg["content"])
     
-    # 2. INPUT BAR (Automatically pins to bottom)
+    # 2. INPUT BAR (Automatically pins to bottom of Tab)
     if prompt := st.chat_input("Answer Pylo or ask a question..."):
-        # Add User Message
         st.session_state.messages.append({"role": "user", "content": prompt})
+        
+        # Display User Message
         with chat_container:
             with st.chat_message("user"): st.markdown(prompt)
         
-            # AI Response
+            # Generate & Display AI Response
             system_prompt = f"""
             You are Pylo, a Python teacher. Student Level: {st.session_state.level}.
             Topic: {curr_lvl_info['title']}.
@@ -247,7 +248,6 @@ with tab_class:
                 response = st.write_stream(chunk.choices[0].delta.content for chunk in stream if chunk.choices[0].delta.content)
             
         st.session_state.messages.append({"role": "assistant", "content": response})
-        # Note: In Streamlit, st.chat_input triggers a rerun, so we don't need manual reruns here.
 
 # --- TAB 2: THE LAB ---
 with tab_lab:
